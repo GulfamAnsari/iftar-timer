@@ -242,7 +242,7 @@ const Qibla = () => {
                     {/* Kaaba Image at the end of the needle */}
                     <img 
                       ref={kaabaRef}
-                      src="/kaba.png" 
+                      src="https://png.pngtree.com/png-vector/20220814/ourmid/pngtree-kaba-house-png-image_6104065.png" 
                       alt="Kaaba" 
                       className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-12 h-12 object-contain"
                       onError={(e) => {
