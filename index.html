@@ -20,7 +20,12 @@
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      document.getElementById("lovable-badge").style.display = 'none';
+      const inter = setInterval(() => {
+        if (document.getElementById("lovable-badge")) {
+          document.getElementById("lovable-badge").style.display = 'none';
+          clearInterval(inter);
+        }
+      }, 200);
     </script>
   </body>
 </html>
