@@ -1,30 +1,54 @@
 
 import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { Clock } from 'lucide-react';
+import { Clock, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/components/ui/use-toast';
 import AppLayout from '@/components/layout/AppLayout';
 import { getCurrentLocation, getPrayerTimesForPeriod } from '@/utils/prayerTimes';
 
 const PrayerTimes = () => {
   const [prayerTimes, setPrayerTimes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('daily');
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchPrayerTimes = async () => {
       try {
+        setIsLoading(true);
         const location = await getCurrentLocation();
-        const times = getPrayerTimesForPeriod(location, 7);
+        const times = await getPrayerTimesForPeriod(location, 7);
         setPrayerTimes(times);
       } catch (error) {
         console.error('Error fetching prayer times:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch prayer times. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchPrayerTimes();
-  }, []);
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="container mx-auto px-4 py-16 flex justify-center items-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 mx-auto animate-spin mb-4" />
+            <h2 className="text-xl font-semibold">Loading Prayer Times</h2>
+            <p className="text-muted-foreground mt-2">Please wait while we fetch the latest data</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

@@ -16,6 +16,7 @@ const PrayerTimesDashboard = () => {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [nextTime, setNextTime] = useState<{ name: string; time: string; timestamp: number } | null>(null);
   const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   // Update current time every second
@@ -98,11 +99,27 @@ const PrayerTimesDashboard = () => {
 
   // Calculate prayer times based on location
   useEffect(() => {
-    if (coordinates.latitude && coordinates.longitude) {
-      const times = getRamadanTimes(coordinates);
-      setRamadanTimes(times);
-    }
-  }, [coordinates]);
+    const fetchPrayerTimes = async () => {
+      if (coordinates.latitude && coordinates.longitude) {
+        setIsLoading(true);
+        try {
+          const times = await getRamadanTimes(coordinates);
+          setRamadanTimes(times);
+        } catch (error) {
+          console.error('Error fetching prayer times:', error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch prayer times. Please try again later.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchPrayerTimes();
+  }, [coordinates, toast]);
 
   // Determine next prayer time and progress
   useEffect(() => {
@@ -132,6 +149,22 @@ const PrayerTimesDashboard = () => {
       });
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Loading Prayer Times</h2>
+          <p className="text-muted-foreground mb-6">Please wait while we fetch the latest data...</p>
+          <Progress value={50} className="w-64 h-2 mb-4" />
+          <p className="text-sm text-muted-foreground">
+            {loadingLocation ? 'Determining your location...' : `Location: ${locationName}`}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6 animate-fade-in">

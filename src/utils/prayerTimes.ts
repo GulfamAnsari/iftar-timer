@@ -18,9 +18,63 @@ interface DailyPrayers {
   prayers: PrayerTime[];
 }
 
-// This is a simplified calculation for demo purposes
-// In a real app, we would use proper astronomical calculations or an API
-const calculatePrayerTimes = (
+// Fetch prayer times from the Aladhan API
+const fetchPrayerTimesFromAPI = async (
+  date: Date,
+  coordinates: Coordinates
+): Promise<PrayerTime[]> => {
+  try {
+    const dateStr = format(date, 'dd-MM-yyyy');
+    const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&method=2`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch prayer times from API');
+    }
+    
+    const data = await response.json();
+    
+    if (!data.data || !data.data.timings) {
+      throw new Error('Invalid response format from prayer times API');
+    }
+    
+    const timings = data.data.timings;
+    
+    // Map API response to our format
+    const prayerMappings = [
+      { name: 'Fajr', key: 'Fajr' },
+      { name: 'Sunrise', key: 'Sunrise' },
+      { name: 'Dhuhr', key: 'Dhuhr' },
+      { name: 'Asr', key: 'Asr' },
+      { name: 'Maghrib', key: 'Maghrib' },
+      { name: 'Isha', key: 'Isha' }
+    ];
+    
+    const baseDate = new Date(date);
+    baseDate.setHours(0, 0, 0, 0);
+    
+    return prayerMappings.map(({ name, key }) => {
+      // Convert API time format (HH:MM) to Date object
+      const [hours, minutes] = timings[key].split(':').map(Number);
+      const timestamp = new Date(baseDate);
+      timestamp.setHours(hours, minutes, 0, 0);
+      
+      return {
+        name,
+        time: format(timestamp, 'h:mm a'),
+        timestamp: timestamp.getTime(),
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching prayer times from API:', error);
+    // Fall back to simplified calculation if API fails
+    return calculateFallbackPrayerTimes(date, coordinates);
+  }
+};
+
+// Fallback calculation for demo purposes when API fails
+const calculateFallbackPrayerTimes = (
   date: Date, 
   coordinates: Coordinates
 ): PrayerTime[] => {
@@ -30,7 +84,7 @@ const calculatePrayerTimes = (
   const baseDate = new Date(date);
   baseDate.setHours(0, 0, 0, 0);
   
-  // Sample prayer times - in a real app these would be calculated based on location and date
+  // Sample prayer times as fallback
   const times = [
     { name: 'Fajr', hour: 5, minute: 15 },
     { name: 'Sunrise', hour: 6, minute: 30 },
@@ -57,8 +111,12 @@ const calculateRamadanTimes = (prayers: PrayerTime[]): { sehri: PrayerTime; ifta
   const fajr = prayers.find(prayer => prayer.name === 'Fajr');
   const maghrib = prayers.find(prayer => prayer.name === 'Maghrib');
   
+  if (!fajr || !maghrib) {
+    throw new Error('Fajr or Maghrib prayer times not found');
+  }
+  
   // Sehri ends 10 minutes before Fajr
-  const sehriTime = new Date(fajr!.timestamp - 10 * 60 * 1000);
+  const sehriTime = new Date(fajr.timestamp - 10 * 60 * 1000);
   
   return {
     sehri: {
@@ -68,40 +126,40 @@ const calculateRamadanTimes = (prayers: PrayerTime[]): { sehri: PrayerTime; ifta
     },
     iftar: {
       name: 'Iftar',
-      time: maghrib!.time,
-      timestamp: maghrib!.timestamp,
+      time: maghrib.time,
+      timestamp: maghrib.timestamp,
     },
   };
 };
 
 // Get prayer times for the next few days
-export const getPrayerTimesForPeriod = (
+export const getPrayerTimesForPeriod = async (
   coordinates: Coordinates,
   days: number = 7
-): DailyPrayers[] => {
+): Promise<DailyPrayers[]> => {
   const result: DailyPrayers[] = [];
   const today = new Date();
   
-  for (let i = 0; i < days; i++) {
+  // Use Promise.all to fetch all days in parallel
+  const promises = Array.from({ length: days }, (_, i) => {
     const date = addDays(today, i);
-    const prayers = calculatePrayerTimes(date, coordinates);
-    
-    result.push({
-      date: format(date, 'yyyy-MM-dd'),
-      formattedDate: format(date, 'EEEE, MMMM d'),
-      prayers,
-    });
-  }
+    return fetchPrayerTimesFromAPI(date, coordinates)
+      .then(prayers => ({
+        date: format(date, 'yyyy-MM-dd'),
+        formattedDate: format(date, 'EEEE, MMMM d'),
+        prayers,
+      }));
+  });
   
-  return result;
+  return Promise.all(promises);
 };
 
 // Get Ramadan specific times (Sehri and Iftar)
-export const getRamadanTimes = (
+export const getRamadanTimes = async (
   coordinates: Coordinates,
   days: number = 7
-): { date: string; formattedDate: string; sehri: PrayerTime; iftar: PrayerTime }[] => {
-  const prayerTimes = getPrayerTimesForPeriod(coordinates, days);
+): Promise<{ date: string; formattedDate: string; sehri: PrayerTime; iftar: PrayerTime }[]> => {
+  const prayerTimes = await getPrayerTimesForPeriod(coordinates, days);
   
   return prayerTimes.map(({ date, formattedDate, prayers }) => {
     const { sehri, iftar } = calculateRamadanTimes(prayers);
