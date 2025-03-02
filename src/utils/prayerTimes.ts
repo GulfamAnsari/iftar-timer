@@ -136,11 +136,32 @@ export const getCurrentLocation = (): Promise<Coordinates> => {
         },
         (error) => {
           console.error('Error getting location:', error);
+          let errorMessage = 'Unknown error occurred';
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = 'Location permission denied';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = 'Location information unavailable';
+              break;
+            case error.TIMEOUT:
+              errorMessage = 'Location request timed out';
+              break;
+          }
+          
+          console.warn(`Using default coordinates. Reason: ${errorMessage}`);
+          
           // Default to Mecca coordinates if location access is denied
           resolve({
             latitude: 21.3891,
             longitude: 39.8579,
           });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
     }

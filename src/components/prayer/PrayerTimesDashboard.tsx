@@ -37,13 +37,48 @@ const PrayerTimesDashboard = () => {
         // Reverse geocoding to get location name
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.latitude}&lon=${position.longitude}&zoom=10`
           );
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch location data');
+          }
+          
           const data = await response.json();
-          setLocationName(data.address.city || data.address.town || data.address.village || 'Unknown location');
+          
+          // Try to extract the most specific location name available
+          let locationName = 'Unknown location';
+          
+          if (data && data.address) {
+            // Priority order for location names
+            const locationPriority = [
+              'city',
+              'town',
+              'village',
+              'suburb',
+              'county',
+              'state',
+              'country'
+            ];
+            
+            for (const key of locationPriority) {
+              if (data.address[key]) {
+                locationName = data.address[key];
+                break;
+              }
+            }
+            
+            // If we still don't have a location name, try to use the display_name
+            if (locationName === 'Unknown location' && data.display_name) {
+              // Extract just the first part of the display name (usually the most specific)
+              locationName = data.display_name.split(',')[0];
+            }
+          }
+          
+          setLocationName(locationName);
         } catch (error) {
           console.error('Error getting location name:', error);
-          setLocationName('Unknown location');
+          setLocationName(`Location at ${position.latitude.toFixed(2)}, ${position.longitude.toFixed(2)}`);
         }
       } catch (error) {
         console.error('Error getting location:', error);
