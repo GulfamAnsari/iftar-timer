@@ -1,0 +1,89 @@
+
+import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { Clock } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import AppLayout from '@/components/layout/AppLayout';
+import { getCurrentLocation, getPrayerTimesForPeriod } from '@/utils/prayerTimes';
+
+const PrayerTimes = () => {
+  const [prayerTimes, setPrayerTimes] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('daily');
+
+  useEffect(() => {
+    const fetchPrayerTimes = async () => {
+      try {
+        const location = await getCurrentLocation();
+        const times = getPrayerTimesForPeriod(location, 7);
+        setPrayerTimes(times);
+      } catch (error) {
+        console.error('Error fetching prayer times:', error);
+      }
+    };
+
+    fetchPrayerTimes();
+  }, []);
+
+  return (
+    <AppLayout>
+      <div className="container mx-auto px-4 py-8 animate-fade-in">
+        <h1 className="text-3xl font-bold mb-6">Prayer Times</h1>
+        
+        <Tabs defaultValue="daily" onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="daily">Daily View</TabsTrigger>
+            <TabsTrigger value="weekly">Weekly View</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="daily" className="space-y-6">
+            {prayerTimes.length > 0 && (
+              <Card className="glass-card overflow-hidden">
+                <CardContent className="p-6">
+                  <h2 className="text-2xl font-bold mb-4">{prayerTimes[0].formattedDate}</h2>
+                  <div className="space-y-4">
+                    {prayerTimes[0].prayers.map((prayer: any, index: number) => (
+                      <React.Fragment key={prayer.name}>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <Clock className="h-5 w-5 mr-3 text-muted-foreground" />
+                            <span className="font-medium">{prayer.name}</span>
+                          </div>
+                          <span className="text-lg">{prayer.time}</span>
+                        </div>
+                        {index < prayerTimes[0].prayers.length - 1 && (
+                          <Separator className="my-2" />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="weekly" className="space-y-6">
+            {prayerTimes.map((day, dayIndex) => (
+              <Card key={dayIndex} className="glass-card overflow-hidden">
+                <CardContent className="p-4">
+                  <h3 className="font-bold mb-3">{day.formattedDate}</h3>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    {day.prayers.map((prayer: any) => (
+                      <div key={prayer.name} className="flex justify-between">
+                        <span className="text-muted-foreground">{prayer.name}</span>
+                        <span>{prayer.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+};
+
+export default PrayerTimes;
