@@ -1,7 +1,7 @@
 
 {
-  "name": "Ramadan App",
-  "short_name": "Ramadan",
+  "name": "Ramadan & Prayer Times App",
+  "short_name": "Ramadan App",
   "icons": [
     {
       "src": "favicon.ico",
@@ -23,7 +23,7 @@
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#ffffff",
-  "description": "Islamic prayer times and Ramadan schedule app",
+  "description": "Islamic prayer times, Qibla direction, and Ramadan schedule app",
   "orientation": "portrait-primary",
   "categories": ["religious", "lifestyle"],
   "screenshots": [],
@@ -38,6 +38,12 @@
       "name": "Qibla Direction",
       "short_name": "Qibla",
       "url": "/qibla",
+      "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
+    },
+    {
+      "name": "Set Alarms",
+      "short_name": "Alarms",
+      "url": "/alarms",
       "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
     }
   ]

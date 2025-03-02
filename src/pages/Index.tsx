@@ -1,15 +1,26 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, AlarmClock, Compass } from 'lucide-react';
+import { Clock, AlarmClock, Compass, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/components/layout/AppLayout';
 import PrayerTimesDashboard from '@/components/prayer/PrayerTimesDashboard';
+import InstallGuide from '@/components/pwa/InstallGuide';
 
 const Index = () => {
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-4 md:py-8">
+        {/* PWA Install Banner */}
+        <div className="mb-6 p-4 rounded-lg bg-primary/10 flex justify-between items-center">
+          <div className="flex-1">
+            <h3 className="font-semibold">Get the full app experience</h3>
+            <p className="text-sm text-muted-foreground">Install as an app for reliable alarms and offline access</p>
+          </div>
+          <InstallGuide />
+        </div>
+
         <PrayerTimesDashboard />
         
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">

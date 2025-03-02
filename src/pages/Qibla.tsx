@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
+import { toast } from "@/components/ui/use-toast";
 import AppLayout from '@/components/layout/AppLayout';
 import { getCurrentLocation } from '@/utils/prayerTimes';
 
@@ -21,6 +22,7 @@ const Qibla = () => {
   const [activeTab, setActiveTab] = useState('compass');
   const compassRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLDivElement>(null);
+  const kaabaRef = useRef<HTMLImageElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -121,6 +123,10 @@ const Qibla = () => {
     if (needleRef.current && qiblaDirection !== null) {
       const needleRotation = qiblaDirection - currentHeading;
       needleRef.current.style.transform = `rotate(${needleRotation}deg)`;
+      
+      if (kaabaRef.current) {
+        kaabaRef.current.style.transform = `rotate(${needleRotation}deg)`;
+      }
     }
     
     if (compassRef.current) {
@@ -145,13 +151,34 @@ const Qibla = () => {
   };
 
   const handleRequestCameraAccess = () => {
-    toast({
-      title: "Camera Access",
-      description: "This feature uses your camera to help locate the Qibla direction in augmented reality.",
-    });
-    
-    // This would typically trigger a camera permission request
-    // In a real app, we would implement AR functionality here
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          const videoElement = document.getElementById('ar-camera') as HTMLVideoElement;
+          if (videoElement) {
+            videoElement.srcObject = stream;
+            videoElement.play();
+          }
+          toast({
+            title: "Camera Access Granted",
+            description: "Point your camera around to see the Qibla direction overlay.",
+          });
+        })
+        .catch(error => {
+          console.error('Error accessing camera:', error);
+          toast({
+            title: "Camera Access Denied",
+            description: "Please allow camera access to use the AR mode.",
+            variant: "destructive"
+          });
+        });
+    } else {
+      toast({
+        title: "Not Supported",
+        description: "Your device doesn't support camera access required for AR mode.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -211,6 +238,19 @@ const Qibla = () => {
                   >
                     <div className="w-1 bg-primary" style={{ height: '50%' }} />
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-primary shadow-md" />
+                    
+                    {/* Kaaba Image at the end of the needle */}
+                    <img 
+                      ref={kaabaRef}
+                      src="/kaba.png" 
+                      alt="Kaaba" 
+                      className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-12 h-12 object-contain"
+                      onError={(e) => {
+                        // If image fails to load, show a replacement
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
+                    />
                   </div>
                 </div>
                 
@@ -243,7 +283,7 @@ const Qibla = () => {
                   <div>
                     <h3 className="font-semibold mb-1">How to use the Qibla Compass</h3>
                     <p className="text-muted-foreground text-sm">
-                      Hold your device flat with the screen facing up. The needle points toward the Kaaba in Mecca. For best results, calibrate your compass regularly and keep it away from magnetic objects.
+                      Hold your device flat with the screen facing up. The Kaaba icon points toward the Kaaba in Mecca. For best results, calibrate your compass regularly and keep it away from magnetic objects.
                     </p>
                   </div>
                 </div>
@@ -254,21 +294,55 @@ const Qibla = () => {
           <TabsContent value="camera" className="space-y-6">
             <Card className="glass-card overflow-hidden">
               <CardContent className="p-6 flex flex-col items-center justify-center min-h-[400px]">
-                <div className="text-center mb-8">
-                  <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">Camera-based Qibla Finder</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Use your camera to see the direction of Qibla with augmented reality. Point your phone around you to find the Kaaba direction.
-                  </p>
+                <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
+                  <video 
+                    id="ar-camera" 
+                    className="w-full h-full object-cover"
+                    playsInline
+                    autoPlay
+                    muted
+                  ></video>
+                  
+                  {qiblaDirection !== null && (
+                    <div 
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                      style={{ transform: `translate(-50%, -50%) rotate(${qiblaDirection - currentHeading}deg)` }}
+                    >
+                      <div className="relative">
+                        <div className="w-1 h-32 bg-primary mx-auto"></div>
+                        <img 
+                          src="/kaba.png" 
+                          alt="Kaaba" 
+                          className="absolute -top-12 left-1/2 -translate-x-1/2 w-12 h-12 object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/placeholder.svg";
+                          }}
+                        />
+                        <div className="text-xs font-bold text-white bg-primary/70 px-2 py-1 rounded absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                          Kaaba Direction
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {activeTab === 'camera' && !document.getElementById('ar-camera')?.srcObject && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80">
+                      <Camera className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">Camera-based Qibla Finder</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto text-center mb-6">
+                        Use your camera to see the direction of Qibla with augmented reality.
+                      </p>
+                      <Button 
+                        onClick={handleRequestCameraAccess}
+                        className="rounded-full"
+                      >
+                        <Camera className="h-5 w-5 mr-2" />
+                        Access Camera
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                
-                <Button 
-                  onClick={handleRequestCameraAccess}
-                  className="rounded-full"
-                >
-                  <Camera className="h-5 w-5 mr-2" />
-                  Access Camera
-                </Button>
               </CardContent>
             </Card>
             
