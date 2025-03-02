@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { getCurrentLocation, getRamadanTimes, getNextPrayer } from '@/utils/prayerTimes';
 
 const PrayerTimesDashboard = () => {
@@ -17,6 +18,9 @@ const PrayerTimesDashboard = () => {
   const [nextTime, setNextTime] = useState<{ name: string; time: string; timestamp: number } | null>(null);
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAlarmDialog, setShowAlarmDialog] = useState(false);
+  const [alarmType, setAlarmType] = useState<'sehri' | 'iftar'>('sehri');
+  const [alarmTime, setAlarmTime] = useState('');
   const { toast } = useToast();
 
   // Update current time every second
@@ -85,10 +89,10 @@ const PrayerTimesDashboard = () => {
         console.error('Error getting location:', error);
         toast({
           title: "Location Error",
-          description: "Could not access your location. Using default coordinates.",
+          description: "Could not access your location. Please check your browser permissions.",
           variant: "destructive",
         });
-        setLocationName('Default location');
+        setLocationName('Location unavailable');
       } finally {
         setLoadingLocation(false);
       }
@@ -109,7 +113,7 @@ const PrayerTimesDashboard = () => {
           console.error('Error fetching prayer times:', error);
           toast({
             title: "Error",
-            description: "Failed to fetch prayer times. Please try again later.",
+            description: "Failed to fetch prayer times. Please check your internet connection and try again.",
             variant: "destructive",
           });
         } finally {
@@ -143,11 +147,99 @@ const PrayerTimesDashboard = () => {
   const handleSetAlarm = (type: 'sehri' | 'iftar') => {
     if (ramadanTimes.length > 0) {
       const time = type === 'sehri' ? ramadanTimes[0].sehri.time : ramadanTimes[0].iftar.time;
+      setAlarmType(type);
+      setAlarmTime(time);
+      setShowAlarmDialog(true);
+    }
+  };
+
+  const confirmSetAlarm = () => {
+    if ('serviceWorker' in navigator && 'Notification' in window) {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          // Convert time string to Date object for scheduling
+          const [hourStr, minuteStr] = alarmTime.split(':');
+          const [minutePart, periodPart] = minuteStr.split(' ');
+          
+          let hour = parseInt(hourStr, 10);
+          const minute = parseInt(minutePart, 10);
+          
+          if (periodPart.toLowerCase() === 'pm' && hour < 12) {
+            hour += 12;
+          } else if (periodPart.toLowerCase() === 'am' && hour === 12) {
+            hour = 0;
+          }
+          
+          const alarmDate = new Date();
+          alarmDate.setHours(hour, minute, 0, 0);
+          
+          // If the time has already passed today, schedule for tomorrow
+          if (alarmDate < new Date()) {
+            alarmDate.setDate(alarmDate.getDate() + 1);
+          }
+          
+          const timeUntilAlarm = alarmDate.getTime() - new Date().getTime();
+          
+          // Register for alarm notification
+          if ('wakeLock' in navigator || 'setAlarm' in window) {
+            // Use wake lock API if available (not standard yet)
+            console.log('Setting alarm with wake lock for', alarmDate);
+          }
+          
+          // Fallback to setTimeout (won't work if app is closed)
+          const alarmTimeout = setTimeout(() => {
+            new Notification(`${alarmType === 'sehri' ? 'Sehri' : 'Iftar'} Time`, {
+              body: `It's time for ${alarmType === 'sehri' ? 'Sehri' : 'Iftar'}!`,
+              icon: '/favicon.ico',
+            });
+            
+            // Play sound
+            const audio = new Audio('/alarm-sound.mp3');
+            audio.loop = true;
+            audio.play().catch(error => {
+              console.error('Error playing alarm sound:', error);
+            });
+            
+            // Stop sound after 30 seconds if not manually stopped
+            setTimeout(() => {
+              audio.pause();
+              audio.currentTime = 0;
+            }, 30000);
+            
+          }, timeUntilAlarm);
+          
+          // Save alarm data to localStorage
+          const alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
+          alarms.push({
+            id: Date.now(),
+            type: alarmType,
+            time: alarmTime,
+            date: alarmDate.toISOString(),
+            timeoutId: String(alarmTimeout),
+          });
+          localStorage.setItem('alarms', JSON.stringify(alarms));
+          
+          toast({
+            title: `${alarmType === 'sehri' ? 'Sehri' : 'Iftar'} Alarm Set`,
+            description: `Alarm will notify you at ${alarmTime}`,
+          });
+        } else {
+          toast({
+            title: "Permission Denied",
+            description: "Notification permission is required to set alarms.",
+            variant: "destructive",
+          });
+        }
+      });
+    } else {
       toast({
-        title: `${type === 'sehri' ? 'Sehri' : 'Iftar'} Alarm`,
-        description: `Alarm will be set for ${time}`,
+        title: "Not Supported",
+        description: "Alarms require notification support, which your browser doesn't provide.",
+        variant: "destructive",
       });
     }
+    
+    setShowAlarmDialog(false);
   };
 
   // Loading state
@@ -307,6 +399,25 @@ const PrayerTimesDashboard = () => {
           ))}
         </div>
       </div>
+
+      {/* Alarm Dialog */}
+      <Dialog open={showAlarmDialog} onOpenChange={setShowAlarmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{alarmType === 'sehri' ? 'Sehri' : 'Iftar'} Alarm</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Set alarm for {alarmType === 'sehri' ? 'Sehri' : 'Iftar'} at {alarmTime}?</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Your device must be on for the alarm to work. We recommend keeping the device plugged in.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAlarmDialog(false)}>Cancel</Button>
+            <Button onClick={confirmSetAlarm}>Set Alarm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

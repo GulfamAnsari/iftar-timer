@@ -1,24 +1,44 @@
 
 {
-  "name": "Iftar Timer",
-  "short_name": "Iftar Timer",
-  "description": "Track prayer times, set alarms for Sehri and Iftar, and find Qibla direction",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "name": "Ramadan App",
+  "short_name": "Ramadan",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "logo192.png",
       "type": "image/png",
-      "purpose": "any maskable"
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "description": "Islamic prayer times and Ramadan schedule app",
+  "orientation": "portrait-primary",
+  "categories": ["religious", "lifestyle"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Prayer Times",
+      "short_name": "Prayers",
+      "url": "/times",
+      "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
+    },
+    {
+      "name": "Qibla Direction",
+      "short_name": "Qibla",
+      "url": "/qibla",
+      "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
     }
   ]
 }

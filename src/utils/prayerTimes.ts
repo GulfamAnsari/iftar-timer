@@ -23,80 +23,41 @@ const fetchPrayerTimesFromAPI = async (
   date: Date,
   coordinates: Coordinates
 ): Promise<PrayerTime[]> => {
-  try {
-    const dateStr = format(date, 'dd-MM-yyyy');
-    const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&method=2`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch prayer times from API');
-    }
-    
-    const data = await response.json();
-    
-    if (!data.data || !data.data.timings) {
-      throw new Error('Invalid response format from prayer times API');
-    }
-    
-    const timings = data.data.timings;
-    
-    // Map API response to our format
-    const prayerMappings = [
-      { name: 'Fajr', key: 'Fajr' },
-      { name: 'Sunrise', key: 'Sunrise' },
-      { name: 'Dhuhr', key: 'Dhuhr' },
-      { name: 'Asr', key: 'Asr' },
-      { name: 'Maghrib', key: 'Maghrib' },
-      { name: 'Isha', key: 'Isha' }
-    ];
-    
-    const baseDate = new Date(date);
-    baseDate.setHours(0, 0, 0, 0);
-    
-    return prayerMappings.map(({ name, key }) => {
-      // Convert API time format (HH:MM) to Date object
-      const [hours, minutes] = timings[key].split(':').map(Number);
-      const timestamp = new Date(baseDate);
-      timestamp.setHours(hours, minutes, 0, 0);
-      
-      return {
-        name,
-        time: format(timestamp, 'h:mm a'),
-        timestamp: timestamp.getTime(),
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching prayer times from API:', error);
-    // Fall back to simplified calculation if API fails
-    return calculateFallbackPrayerTimes(date, coordinates);
+  const dateStr = format(date, 'dd-MM-yyyy');
+  const url = `https://api.aladhan.com/v1/timings/${dateStr}?latitude=${coordinates.latitude}&longitude=${coordinates.longitude}&method=2`;
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch prayer times from API');
   }
-};
-
-// Fallback calculation for demo purposes when API fails
-const calculateFallbackPrayerTimes = (
-  date: Date, 
-  coordinates: Coordinates
-): PrayerTime[] => {
-  // This would typically use the coordinates for exact calculations
-  // For demo purposes, we'll just use a simplified approach
+  
+  const data = await response.json();
+  
+  if (!data.data || !data.data.timings) {
+    throw new Error('Invalid response format from prayer times API');
+  }
+  
+  const timings = data.data.timings;
+  
+  // Map API response to our format
+  const prayerMappings = [
+    { name: 'Fajr', key: 'Fajr' },
+    { name: 'Sunrise', key: 'Sunrise' },
+    { name: 'Dhuhr', key: 'Dhuhr' },
+    { name: 'Asr', key: 'Asr' },
+    { name: 'Maghrib', key: 'Maghrib' },
+    { name: 'Isha', key: 'Isha' }
+  ];
   
   const baseDate = new Date(date);
   baseDate.setHours(0, 0, 0, 0);
   
-  // Sample prayer times as fallback
-  const times = [
-    { name: 'Fajr', hour: 5, minute: 15 },
-    { name: 'Sunrise', hour: 6, minute: 30 },
-    { name: 'Dhuhr', hour: 12, minute: 15 },
-    { name: 'Asr', hour: 15, minute: 45 },
-    { name: 'Maghrib', hour: 18, minute: 10 },
-    { name: 'Isha', hour: 19, minute: 30 },
-  ];
-  
-  return times.map(({ name, hour, minute }) => {
+  return prayerMappings.map(({ name, key }) => {
+    // Convert API time format (HH:MM) to Date object
+    const [hours, minutes] = timings[key].split(':').map(Number);
     const timestamp = new Date(baseDate);
-    timestamp.setHours(hour, minute);
+    timestamp.setHours(hours, minutes, 0, 0);
     
     return {
       name,
@@ -154,7 +115,7 @@ export const getPrayerTimesForPeriod = async (
   return Promise.all(promises);
 };
 
-// Get Ramadan specific times (Sehri and Iftar)
+// Get Ramadan specific times (Sehri and Iftar) from API
 export const getRamadanTimes = async (
   coordinates: Coordinates,
   days: number = 7
@@ -208,13 +169,7 @@ export const getCurrentLocation = (): Promise<Coordinates> => {
               break;
           }
           
-          console.warn(`Using default coordinates. Reason: ${errorMessage}`);
-          
-          // Default to Mecca coordinates if location access is denied
-          resolve({
-            latitude: 21.3891,
-            longitude: 39.8579,
-          });
+          reject(new Error(errorMessage));
         },
         {
           enableHighAccuracy: true,

@@ -12,6 +12,7 @@ const PrayerTimes = () => {
   const [prayerTimes, setPrayerTimes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('daily');
   const [isLoading, setIsLoading] = useState(true);
+  const [locationName, setLocationName] = useState<string>('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -19,13 +20,57 @@ const PrayerTimes = () => {
       try {
         setIsLoading(true);
         const location = await getCurrentLocation();
+        
+        // Fetch location name
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.latitude}&lon=${location.longitude}&zoom=10`
+          );
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch location data');
+          }
+          
+          const data = await response.json();
+          
+          let locationName = '';
+          
+          if (data && data.address) {
+            const locationPriority = [
+              'city',
+              'town',
+              'village',
+              'suburb',
+              'county',
+              'state',
+              'country'
+            ];
+            
+            for (const key of locationPriority) {
+              if (data.address[key]) {
+                locationName = data.address[key];
+                break;
+              }
+            }
+            
+            if (!locationName && data.display_name) {
+              locationName = data.display_name.split(',')[0];
+            }
+          }
+          
+          setLocationName(locationName || `${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`);
+        } catch (error) {
+          console.error('Error getting location name:', error);
+          setLocationName(`${location.latitude.toFixed(2)}, ${location.longitude.toFixed(2)}`);
+        }
+        
         const times = await getPrayerTimesForPeriod(location, 7);
         setPrayerTimes(times);
       } catch (error) {
         console.error('Error fetching prayer times:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch prayer times. Please try again later.",
+          description: "Failed to fetch prayer times. Please ensure location access is enabled.",
           variant: "destructive",
         });
       } finally {
@@ -53,7 +98,10 @@ const PrayerTimes = () => {
   return (
     <AppLayout>
       <div className="container mx-auto px-4 py-8 animate-fade-in">
-        <h1 className="text-3xl font-bold mb-6">Prayer Times</h1>
+        <h1 className="text-3xl font-bold mb-2">Prayer Times</h1>
+        {locationName && (
+          <p className="text-muted-foreground mb-6">Location: {locationName}</p>
+        )}
         
         <Tabs defaultValue="daily" onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2 mb-6">
